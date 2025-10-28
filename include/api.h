@@ -15,4 +15,7 @@ extern plate_queue_t g_ocr_to_bill;
 // Small helpers
 long now_ns(void);
 
+extern int g_faults;
+extern int g_bad_lock_order;
+
 #endif

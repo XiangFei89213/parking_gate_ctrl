@@ -1,13 +1,21 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <time.h>
 #include "api.h"
 #include "locks.h"
 #include "queue.h"
+#include "metrics.h"  
+
+// define global variables
+int g_faults =0;
+int g_bad_lock_order=0;
 
 metrics_t g_metrics;
 
 int main(void) {
     printf("Starting Parking Gate Controller (Linux, pthreads)...\n");
+    
 
     // Init shared resources
     locks_init();
@@ -15,6 +23,20 @@ int main(void) {
         fprintf(stderr, "Queue init failed\n");
         return 1;
     }
+
+    // ★ create CSV file
+    if (metrics_open(&g_metrics, "results.csv") != 0) {
+        fprintf(stderr, "metrics open failed\n");
+        return 1;
+    }
+
+    // set flag from env
+    srand((unsigned)time(NULL)); 
+    const char* e1 = getenv("FAULTS");
+    const char* e2 = getenv("BAD_LOCK");
+    g_faults = (e1 && *e1=='1');
+    g_bad_lock_order = (e2 && *e2=='1');
+    printf("[Config] FAULTS=%d BAD_LOCK=%d\n", g_faults, g_bad_lock_order);
 
     // Launch threads
     pthread_t t1, t2, t3, t4;
