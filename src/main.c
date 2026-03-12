@@ -34,6 +34,7 @@ int main(void) {
     srand((unsigned)time(NULL)); 
     const char* e1 = getenv("FAULTS");
     const char* e2 = getenv("BAD_LOCK");
+    // check e1 is not NULL ( not defined) && check *e1 is '1'
     g_faults = (e1 && *e1=='1');
     g_bad_lock_order = (e2 && *e2=='1');
     printf("[Config] FAULTS=%d BAD_LOCK=%d\n", g_faults, g_bad_lock_order);
