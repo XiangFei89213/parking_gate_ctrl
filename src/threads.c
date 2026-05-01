@@ -3,15 +3,18 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdatomic.h>
 #include "api.h"
 #include "locks.h"
 #include "queue.h"
 #include "metrics.h" 
 
+
 // define in main.c
 extern metrics_t g_metrics; 
 extern int g_faults;
 extern int g_bad_lock_order;
+extern atomic_int g_running;
 
 
 // Global queue: OCR(producer) -> Billing(consumer)
@@ -33,7 +36,7 @@ static void fake_gate_actuate(const char* plate) {
 void* ocr_thread(void* arg){
     (void)arg;
     int counter = 1;
-    while (1) {
+    while (g_running) {
         plate_event_t ev = (plate_event_t){0};
         snprintf(ev.plate, sizeof(ev.plate), "ABC%04d", counter++);
         ev.ts_ns = now_ns();                      // timestamp for end-to-end latency
@@ -46,7 +49,8 @@ void* ocr_thread(void* arg){
         pq_push(&g_ocr_to_bill, &ev);            // hand off to billing
         printf("[OCR] Detected %s -> queued\n", ev.plate);
 
-        usleep(200 * 1000);                      // base inter-arrival 200 ms
+        usleep(10*1000);
+        // usleep(200 * 1000);                      // base inter-arrival 200 ms
     }
     return NULL;
 }
@@ -60,9 +64,12 @@ static void record_latency(const plate_event_t* ev){
 
 void* billing_thread(void* arg){
     (void)arg;
-    while (1) {
+    while (g_running) {
         plate_event_t ev;
-        pq_pop(&g_ocr_to_bill, &ev);             // blocking pop
+        if(pq_pop(&g_ocr_to_bill, &ev) != 0 ){
+            break;
+        }
+        
 
         // ---- Critical section: DB + payment ----
         if (g_bad_lock_order && (rand() % 10 == 0)) {
@@ -104,7 +111,7 @@ void* billing_thread(void* arg){
 // gate control thread: monitors gate status (simulated here)
 void* gate_thread(void* arg) {
     (void)arg;
-    while (1) {
+    while (g_running) {
         printf("[Gate] Heartbeat\n");
         usleep(1000 * 1000);
     }
@@ -114,7 +121,7 @@ void* gate_thread(void* arg) {
 // alarm monitoring thread: monitors alarms (simulated here)
 void* alarm_thread(void* arg) {
     (void)arg;
-    while (1) {
+    while (g_running) {
         printf("[Alarm] Monitoring\n");
         usleep(1200 * 1000);
     }

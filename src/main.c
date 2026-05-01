@@ -6,11 +6,19 @@
 #include "locks.h"
 #include "queue.h"
 #include "metrics.h"  
+#include <signal.h>
+#include <stdatomic.h>
 
 // define global variables
+atomic_int g_running = 1;
+void handle_sigint(int sig) {
+    (void)sig;
+    g_running = 0;
+    pthread_cond_broadcast(&g_ocr_to_bill.not_empty);
+}
+
 int g_faults =0;
 int g_bad_lock_order=0;
-
 metrics_t g_metrics;
 
 int main(void) {
@@ -24,7 +32,7 @@ int main(void) {
         return 1;
     }
 
-    // ★ create CSV file
+    // create CSV file
     if (metrics_open(&g_metrics, "results.csv") != 0) {
         fprintf(stderr, "metrics open failed\n");
         return 1;

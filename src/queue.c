@@ -8,6 +8,9 @@
 #include "queue.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stdatomic.h>
+
+extern atomic_int g_running;
 
 // Initialize the plate queue, 
 int pq_init(plate_queue_t *q, size_t capacity) {
@@ -63,9 +66,15 @@ int pq_push(plate_queue_t *q, const plate_event_t *ev) {
 // Pop a plate event from the queue (blocking if empty)
 int pq_pop(plate_queue_t *q, plate_event_t *out) {
     pthread_mutex_lock(&q->mtx);
-    while (q->count == 0) {
+    while (q->count == 0 && g_running) {
         pthread_cond_wait(&q->not_empty, &q->mtx);
     }
+
+    if(q->count == 0){
+        pthread_mutex_unlock(&q->mtx);
+        return -1;
+    }
+
     *out = q->buf[q->head];
     q->head = (q->head + 1) % q->cap;
     q->count--;
