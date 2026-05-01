@@ -88,7 +88,7 @@ make
 To simulate random delays and lock-order faults:
 
 ```bash
-FAULTS=1 BAD_LOCK=1 ./gate_ctrl
+FAULTS=1 BAD_LOCK=1 ./scripts/bench.sh 10
 ```
 
 ---
